@@ -1,0 +1,18 @@
+# TaxMind backend dependencies
+fastapi>=0.115
+uvicorn[standard]>=0.32
+python-multipart>=0.0.12
+pydantic>=2.9
+python-dotenv>=1.0
+pandas>=2.2
+openpyxl>=3.1
+polars>=1.12
+
+# Azure / LLM (primary path) — optional at runtime; local mode works without these
+openai>=1.54
+azure-search-documents>=11.6.0b4
+azure-storage-blob>=12.23
+azure-core>=1.32
+
+# Microsoft Agent Framework (multi-agent orchestration)
+agent-framework>=1.0
