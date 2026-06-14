@@ -10,7 +10,7 @@ polars>=1.12
 
 # Azure / LLM (primary path) — optional at runtime; local mode works without these
 openai>=1.54
-azure-search-documents>=11.6.0b4
+azure-search-documents>=11.7.0b2  # provides the Foundry IQ knowledgebases client
 azure-storage-blob>=12.23
 azure-core>=1.32
 

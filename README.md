@@ -59,6 +59,16 @@ cited `{section, snippet, source}` shape flows through either path.
 
 ## Quickstart (local mode — no keys needed)
 
+**Fastest path (Makefile):**
+```bash
+make setup     # venv + Python deps + frontend deps + demo data (one time)
+make demo      # run the whole pipeline in the terminal — cited flags, GSTR-1/3B, Excel
+make dev       # start API + dashboard together → http://localhost:3000
+make test      # 11 acceptance tests
+```
+
+<details><summary>Manual steps (no make)</summary>
+
 ```bash
 # 1. Backend
 python3 -m venv .venv && source .venv/bin/activate
@@ -69,15 +79,17 @@ python scripts/generate_demo_data.py
 
 # 3. Run the whole pipeline from the CLI
 python scripts/run_full_pipeline.py
-#   → reconciliation, the cited Section 17(5) flags, GSTR-1/3B,
-#     and a filing-ready Excel in ./output/
+#   → reconciliation, cited Section 17(5) flags, GSTR-1/3B, filing Excel in ./output/
 
 # 4. (Optional) Run the API + dashboard
 uvicorn backend.api.main:app --port 8000      # terminal 1
 cd frontend && npm install && npm run dev      # terminal 2  → http://localhost:3000
 ```
+</details>
 
-Run the tests: `pytest backend/tests` (11 tests, local mode).
+> **For evaluators:** TaxMind runs fully on localhost with **no Azure account and no
+> keys** — `make setup && make dev` is everything. Azure/Foundry IQ is an optional
+> upgrade (below) shown live in the demo video.
 
 ## Enabling Azure / Foundry IQ (optional)
 

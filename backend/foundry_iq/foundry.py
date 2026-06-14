@@ -1,21 +1,16 @@
 """Foundry IQ knowledge base adapter (Azure mode).
 
-Calls Foundry IQ agentic retrieval (served by Azure AI Search) and maps the
-response onto the same :class:`KnowledgeResult` shape the rest of TaxMind expects.
-Uses only the standard library for the HTTP call so the local-mode install stays
-dependency-light; the request shape follows the ``2026-05-01-preview`` agentic
-retrieval contract.
+Primary path uses the official ``azure-search-documents`` Foundry IQ client
+(``KnowledgeBaseRetrievalClient`` — agentic retrieval) against a knowledge base you
+create in the Foundry portal. Maps the response onto the same
+:class:`KnowledgeResult` shape the rest of TaxMind expects, so nothing upstream
+changes between local and Azure modes.
 
-This path activates automatically when ``TAXMIND_MODE=azure`` and search creds are
-present. If a call fails it degrades to the local KB rather than guessing, which
-keeps the demo resilient.
+Resilience: if the SDK isn't importable or a live call fails, it degrades to the
+local knowledge base rather than guessing — keeping a live demo robust.
 """
 
 from __future__ import annotations
-
-import json
-import urllib.error
-import urllib.request
 
 from backend.config import Settings
 from backend.foundry_iq.base import KnowledgeBase, KnowledgeResult
@@ -28,67 +23,53 @@ class FoundryIQKnowledgeBase(KnowledgeBase):
 
     def __init__(self, settings: Settings) -> None:
         self._s = settings
-        # Local KB is the graceful fallback if a live call fails mid-demo.
         self._fallback = LocalKnowledgeBase()
+        self._client = None
+        self._models = None
+        try:
+            from azure.core.credentials import AzureKeyCredential
+            from azure.search.documents.knowledgebases import (
+                KnowledgeBaseRetrievalClient,
+            )
+            from azure.search.documents.knowledgebases import models as kb_models
 
-    def _endpoint(self) -> str:
-        base = (self._s.foundry_iq_endpoint or self._s.search_endpoint or "").rstrip("/")
-        return (
-            f"{base}/knowledgeBases/{self._s.foundry_iq_kb}/retrieve"
-            f"?api-version={self._s.foundry_iq_api_version}"
-        )
+            endpoint = settings.foundry_iq_endpoint or settings.search_endpoint
+            if endpoint and settings.search_key:
+                self._client = KnowledgeBaseRetrievalClient(
+                    endpoint=endpoint,
+                    knowledge_base_name=settings.foundry_iq_kb,
+                    credential=AzureKeyCredential(settings.search_key),
+                )
+                self._models = kb_models
+        except Exception:
+            self._client = None
 
     def query(self, question: str, top_k: int = 3) -> KnowledgeResult:
-        payload = {
-            "messages": [
-                {"role": "user", "content": [{"type": "text", "text": question}]}
-            ],
-            "knowledgeSourceParams": [
-                {"knowledgeSourceName": self._s.search_index, "kind": "searchIndex"}
-            ],
-            "rerankerThreshold": 1.5,
-        }
-        req = urllib.request.Request(
-            self._endpoint(),
-            data=json.dumps(payload).encode("utf-8"),
-            headers={
-                "Content-Type": "application/json",
-                "api-key": self._s.search_key or "",
-            },
-            method="POST",
-        )
+        if self._client is None:
+            res = self._fallback.query(question, top_k=top_k)
+            res.backend = "foundry_iq(fallback:local)"
+            return res
         try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-            return self._parse(question, data)
-        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, KeyError):
-            # Resilience over silence: fall back to local grounding.
-            result = self._fallback.query(question, top_k=top_k)
-            result.backend = "foundry_iq(fallback:local)"
-            return result
+            return self._retrieve(question, top_k)
+        except Exception:
+            res = self._fallback.query(question, top_k=top_k)
+            res.backend = "foundry_iq(fallback:local)"
+            return res
 
-    def _parse(self, question: str, data: dict) -> KnowledgeResult:
-        # Agentic retrieval returns a grounded "response" plus "references".
-        answer = ""
-        resp = data.get("response")
-        if isinstance(resp, list) and resp:
-            content = resp[0].get("content")
-            if isinstance(content, list) and content:
-                answer = content[0].get("text", "")
-            elif isinstance(content, str):
-                answer = content
-
-        citations: list[Citation] = []
-        for ref in data.get("references", [])[:5]:
-            src = ref.get("sourceData", {}) if isinstance(ref, dict) else {}
-            citations.append(
-                Citation(
-                    section=src.get("section") or src.get("title") or "GST reference",
-                    snippet=(src.get("content") or src.get("text") or "")[:320],
-                    source=src.get("source") or "Foundry IQ",
-                    confidence=float(ref.get("rerankerScore", 0) or 0) / 4.0,
+    def _retrieve(self, question: str, top_k: int) -> KnowledgeResult:
+        m = self._models
+        request = m.KnowledgeBaseRetrievalRequest(
+            messages=[
+                m.KnowledgeBaseMessage(
+                    role="user",
+                    content=[m.KnowledgeBaseMessageTextContent(text=question)],
                 )
-            )
+            ],
+            include_activity=True,
+        )
+        resp = self._client.retrieve(retrieval_request=request)
+        answer = _extract_answer(resp)
+        citations = _extract_citations(resp, top_k)
         confidence = max((c.confidence for c in citations), default=0.5 if answer else 0.0)
         return KnowledgeResult(
             question=question,
@@ -97,3 +78,42 @@ class FoundryIQKnowledgeBase(KnowledgeBase):
             confidence=min(1.0, confidence),
             backend="foundry_iq",
         )
+
+
+def _extract_answer(resp) -> str:
+    parts: list[str] = []
+    for msg in getattr(resp, "response", None) or []:
+        content = getattr(msg, "content", None)
+        if isinstance(content, str):
+            parts.append(content)
+        elif isinstance(content, list):
+            for item in content:
+                txt = getattr(item, "text", None)
+                if txt:
+                    parts.append(txt)
+    return "\n".join(parts).strip()
+
+
+def _extract_citations(resp, top_k: int) -> list[Citation]:
+    citations: list[Citation] = []
+    for ref in (getattr(resp, "references", None) or [])[:top_k]:
+        data = getattr(ref, "source_data", None) or {}
+        if not isinstance(data, dict):
+            data = {}
+        snippet = data.get("content") or data.get("text") or data.get("chunk") or ""
+        section = (
+            data.get("section")
+            or data.get("title")
+            or data.get("source")
+            or "GST reference"
+        )
+        score = getattr(ref, "reranker_score", None) or 0.0
+        citations.append(
+            Citation(
+                section=str(section),
+                snippet=str(snippet)[:320],
+                source=str(data.get("source") or data.get("filepath") or "Foundry IQ"),
+                confidence=min(1.0, float(score) / 4.0) if score else 0.5,
+            )
+        )
+    return citations
