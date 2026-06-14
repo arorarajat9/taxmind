@@ -1,0 +1,56 @@
+{
+  "gstin": "27AAQCS4455K1ZP",
+  "period": "042025",
+  "b2b": [
+    {
+      "gstin": "27AAACS1234F1Z5",
+      "supplier": "Hindustan Lever Distributors",
+      "invoice_number": "P-1001",
+      "invoice_date": "2025-04-03",
+      "taxable_value": 50000,
+      "cgst": 4500,
+      "sgst": 4500,
+      "igst": 0
+    },
+    {
+      "gstin": "27AABCH5678G1Z2",
+      "supplier": "Nestle India Distributor",
+      "invoice_number": "P-1002",
+      "invoice_date": "2025-04-06",
+      "taxable_value": 28000,
+      "cgst": 2520,
+      "sgst": 2520,
+      "igst": 0
+    },
+    {
+      "gstin": "27AAFCS3333J1Z1",
+      "supplier": "Sharma Caterers",
+      "invoice_number": "P-1004",
+      "invoice_date": "2025-04-12",
+      "taxable_value": 5000,
+      "cgst": 450,
+      "sgst": 450,
+      "igst": 0
+    },
+    {
+      "gstin": "27AAGCS4444K1Z9",
+      "supplier": "BuildWell Constructions",
+      "invoice_number": "P-1005",
+      "invoice_date": "2025-04-14",
+      "taxable_value": 100000,
+      "cgst": 9000,
+      "sgst": 9000,
+      "igst": 0
+    },
+    {
+      "gstin": "27AAMCX1111Q1Z3",
+      "supplier": "Surprise Supplier Pvt Ltd",
+      "invoice_number": "P-2050",
+      "invoice_date": "2025-04-19",
+      "taxable_value": 15000,
+      "cgst": 1350,
+      "sgst": 1350,
+      "igst": 0
+    }
+  ]
+}
