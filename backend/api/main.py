@@ -19,7 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from backend.agents.orchestrator import run_analysis
+from backend.agents.agent_framework_workflow import run_analysis_via_workflow as run_analysis
 from backend.config import OUTPUT_DIR, SYNTHETIC_DIR, get_settings
 from backend.foundry_iq.factory import get_knowledge_base
 from backend.returns.excel_writer import write_filing_excel

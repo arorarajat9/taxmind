@@ -18,7 +18,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from backend.agents.orchestrator import run_analysis
+from backend.agents.agent_framework_workflow import run_analysis_via_workflow as run_analysis
 from backend.config import OUTPUT_DIR, SYNTHETIC_DIR, get_settings
 from backend.returns.excel_writer import write_filing_excel
 
