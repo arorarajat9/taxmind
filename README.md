@@ -6,6 +6,9 @@
 > Grounded on **Foundry IQ** (knowledge base + agentic retrieval), orchestrated with the
 > **Microsoft Agent Framework**, and reasoning over a **Fabric IQ–style business ontology**.
 
+### 🎥 Demo
+**[▶ Watch the demo video](https://youtu.be/k1cs11BciXk)** — messy Excel → reconciliation → cited Section 17(5) flags → filing-ready GSTR-1 / GSTR-3B.
+
 ![TaxMind dashboard](demo/assets/dashboard.png)
 
 ---
